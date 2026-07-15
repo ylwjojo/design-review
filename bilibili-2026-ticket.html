@@ -49,6 +49,10 @@
         justify-items: center;
       }
 
+      .canvas-stage.has-fixed-modebar {
+        padding-top: 52px;
+      }
+
       .modebar {
         position: sticky;
         top: 12px;
@@ -64,6 +68,13 @@
         background: rgba(255, 255, 255, 0.86);
         backdrop-filter: blur(16px);
         box-shadow: 0 8px 24px rgba(24, 25, 28, 0.08);
+      }
+
+      .modebar.is-fixed {
+        position: fixed;
+        left: var(--modebar-fixed-left, 0);
+        top: 24px;
+        z-index: 65;
       }
 
       .mode-tabs {
@@ -183,6 +194,7 @@
       .top-layer.is-fixed {
         position: fixed;
         left: var(--phone-fixed-left, 0);
+        top: var(--phone-fixed-top, 0);
         right: auto;
         width: 375px;
       }
@@ -333,6 +345,21 @@
         line-height: 1;
         backdrop-filter: blur(8px);
         pointer-events: auto;
+      }
+
+      .icon-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 2;
+      }
+
+      .icon-btn[aria-label="更多"] svg {
+        fill: currentColor;
+        stroke: none;
       }
 
       .nav-actions {
@@ -1586,10 +1613,16 @@
           </span>
         </div>
         <div class="nav">
-          <button class="icon-btn" aria-label="返回">‹</button>
+          <button class="icon-btn editable-icon" aria-label="返回">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
+          </button>
           <div class="nav-actions">
-            <button class="icon-btn" aria-label="分享">↗</button>
-            <button class="icon-btn" aria-label="更多">⋮</button>
+            <button class="icon-btn editable-icon" aria-label="分享">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7" /><path d="M9 7h8v8" /></svg>
+            </button>
+            <button class="icon-btn editable-icon" aria-label="更多">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -1936,17 +1969,26 @@
     <script>
       const phone = document.querySelector(".phone");
       const topLayer = document.querySelector(".top-layer");
+      const modebar = document.querySelector(".modebar");
       let selectedNode = null;
       let layerNodes = [];
 
       function syncTopLayer() {
+        const stageRect = modebar.parentElement.getBoundingClientRect();
+        const modebarFixed = stageRect.top <= 24 && stageRect.bottom > 64;
+        document.documentElement.style.setProperty("--modebar-fixed-left", `${stageRect.left}px`);
+        modebar.classList.toggle("is-fixed", modebarFixed);
+        modebar.parentElement.classList.toggle("has-fixed-modebar", modebarFixed);
+
         if (document.body.classList.contains("code-mode")) {
           topLayer.classList.remove("is-fixed");
           return;
         }
         const rect = phone.getBoundingClientRect();
+        const fixedTop = modebarFixed ? 76 : 0;
         document.documentElement.style.setProperty("--phone-fixed-left", `${rect.left}px`);
-        topLayer.classList.toggle("is-fixed", rect.top <= 0 && rect.bottom > 88);
+        document.documentElement.style.setProperty("--phone-fixed-top", `${fixedTop}px`);
+        topLayer.classList.toggle("is-fixed", rect.top <= fixedTop && rect.bottom > fixedTop + 88);
       }
 
       syncTopLayer();
@@ -2002,7 +2044,7 @@
         copyCss: document.querySelector("#copyCss"),
       };
 
-      const selectableSelector = ".phone *:not(.top-layer):not(.top-layer *)";
+      const selectableSelector = ".phone *:not(.top-layer):not(.top-layer *), .top-layer .icon-btn";
       phone.querySelectorAll(selectableSelector).forEach((node) => node.classList.add("is-editable-hover"));
 
       function pxNumber(value) {
@@ -2039,7 +2081,6 @@
 
       function shouldShowLayer(node) {
         if (!(node instanceof HTMLElement)) return false;
-        if (node.closest(".top-layer")) return false;
         return node !== phone;
       }
 
@@ -2142,7 +2183,7 @@
       function isIconLikeNode(node) {
         if (!node) return false;
         const className = [...node.classList].join(" ");
-        return isSvgNode(node) || isSvgImageNode(node) || /icon|btn|action|mini-action|cellular|wifi|battery/.test(className) || node.closest(".mini-action, .icon-btn");
+        return isSvgNode(node) || isSvgImageNode(node) || /icon|btn|action|mini-action|cellular|wifi|battery|editable-icon/.test(className) || node.closest(".mini-action, .icon-btn, .editable-icon");
       }
 
       function setUploadState() {
@@ -2165,7 +2206,7 @@
       }
 
       function selectNode(node) {
-        if (!node || node === phone || node.closest(".top-layer")) return;
+        if (!node || node === phone) return;
         selectedNode?.classList.remove("is-selected-node");
         selectedNode = node;
         selectedNode.classList.add("is-selected-node");
