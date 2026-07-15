@@ -1,0 +1,2418 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2026 bilibili 工作文档 - 票务详情还原</title>
+    <style>
+      :root {
+        --brand-pink: #ff6699;
+        --text-1: #18191c;
+        --text-2: #61666d;
+        --text-3: #9499a0;
+        --line-light: #f1f2f3;
+        --bg-soft: #f6f7f8;
+        --gold: #bc8732;
+        --side-panel-width: 390px;
+        --layers-width: var(--side-panel-width);
+        --inspector-width: var(--side-panel-width);
+        --figma-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 34 34'%3E%3Cfilter id='s' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeDropShadow dx='2' dy='3' stdDeviation='2.2' flood-color='%23000000' flood-opacity='.28'/%3E%3C/filter%3E%3Cpath filter='url(%23s)' d='M4 3 L29 18 L18 22 L12 31 Z' fill='white'/%3E%3Cpath d='M8 8 L25 18 L16 20.8 L12.2 27 Z' fill='%232c2c2c'/%3E%3C/svg%3E") 4 3, default;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #dfe3e8;
+        color: var(--text-1);
+        font-family: "PingFang SC", "SF Pro Display", "Microsoft YaHei", Arial, sans-serif;
+        letter-spacing: 0;
+      }
+
+      .editor-workbench {
+        display: grid;
+        grid-template-columns: 375px;
+        align-items: start;
+        justify-content: center;
+        min-height: 100vh;
+        width: calc(100vw - var(--inspector-width) - var(--layers-width));
+        margin-left: var(--layers-width);
+        padding: 24px clamp(0px, 2vw, 24px);
+      }
+
+      .canvas-stage {
+        display: grid;
+        gap: 12px;
+        justify-items: center;
+      }
+
+      .modebar {
+        position: sticky;
+        top: 12px;
+        z-index: 35;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 375px;
+        height: 40px;
+        border: 1px solid #d8dde3;
+        border-radius: 8px;
+        padding: 4px;
+        background: rgba(255, 255, 255, 0.86);
+        backdrop-filter: blur(16px);
+        box-shadow: 0 8px 24px rgba(24, 25, 28, 0.08);
+      }
+
+      .mode-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 156px;
+        border-radius: 6px;
+        background: #eef2f6;
+        padding: 2px;
+      }
+
+      .mode-tab {
+        height: 28px;
+        border-radius: 5px;
+        background: transparent;
+        color: #61666d;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .mode-tab.is-active {
+        background: #fff;
+        color: #18191c;
+        box-shadow: 0 1px 3px rgba(24, 25, 28, 0.12);
+      }
+
+      .mode-context {
+        max-width: 118px;
+        overflow: hidden;
+        color: #7b828c;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mode-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .code-action {
+        display: none;
+        height: 28px;
+        border: 1px solid #d8dde3;
+        border-radius: 6px;
+        padding: 0 9px;
+        background: #fff;
+        color: #3f454d;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      body.code-mode .code-action {
+        display: inline-grid;
+        place-items: center;
+      }
+
+      .code-canvas {
+        display: none;
+        width: 375px;
+        min-height: 640px;
+        max-height: calc(100vh - 92px);
+        overflow: auto;
+        border: 1px solid #222832;
+        border-radius: 8px;
+        background: #101114;
+        color: #f6f7f8;
+        box-shadow: 0 20px 60px rgba(24, 25, 28, 0.22);
+      }
+
+      .code-canvas pre {
+        margin: 0;
+        padding: 18px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.65;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      body.code-mode .phone {
+        display: none;
+      }
+
+      body.code-mode .code-canvas {
+        display: block;
+      }
+
+      button {
+        border: 0;
+        font: inherit;
+      }
+
+      .phone {
+        position: relative;
+        width: 375px;
+        min-height: 3154px;
+        margin: 0;
+        overflow: hidden;
+        background: var(--bg-soft);
+        box-shadow: 0 20px 60px rgba(24, 25, 28, 0.2);
+      }
+
+      .top-layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        z-index: 20;
+        height: 88px;
+        pointer-events: none;
+      }
+
+      .top-layer.is-fixed {
+        position: fixed;
+        left: var(--phone-fixed-left, 0);
+        right: auto;
+        width: 375px;
+      }
+
+      .top-layer::before {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 44px;
+        background:
+          linear-gradient(90deg, rgba(61, 88, 141, 0.56), rgba(166, 105, 183, 0.58), rgba(48, 67, 126, 0.56)),
+          rgba(24, 25, 28, 0.24);
+        backdrop-filter: blur(18px);
+        content: "";
+      }
+
+      .status {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 44px;
+        padding: 0 26px 0 32px;
+        color: #fff;
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.24);
+        pointer-events: none;
+      }
+
+      .status-time {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 20px;
+      }
+
+      .status-icons {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .cellular {
+        display: flex;
+        align-items: flex-end;
+        gap: 3px;
+        height: 14px;
+      }
+
+      .cellular span {
+        display: block;
+        width: 4px;
+        border-radius: 2px;
+        background: #fff;
+      }
+
+      .cellular span:nth-child(1) {
+        height: 6px;
+      }
+
+      .cellular span:nth-child(2) {
+        height: 9px;
+      }
+
+      .cellular span:nth-child(3) {
+        height: 12px;
+      }
+
+      .cellular span:nth-child(4) {
+        height: 15px;
+      }
+
+      .wifi {
+        position: relative;
+        width: 23px;
+        height: 16px;
+        overflow: hidden;
+      }
+
+      .wifi::before,
+      .wifi::after {
+        position: absolute;
+        left: 50%;
+        border: 4px solid #fff;
+        border-right-color: transparent;
+        border-bottom-color: transparent;
+        border-left-color: transparent;
+        border-radius: 50%;
+        content: "";
+        transform: translateX(-50%);
+      }
+
+      .wifi::before {
+        top: 0;
+        width: 28px;
+        height: 28px;
+      }
+
+      .wifi::after {
+        top: 8px;
+        width: 14px;
+        height: 14px;
+      }
+
+      .battery {
+        position: relative;
+        width: 27px;
+        height: 14px;
+        border: 2px solid rgba(255, 255, 255, 0.82);
+        border-radius: 4px;
+      }
+
+      .battery::before {
+        position: absolute;
+        inset: 2px;
+        border-radius: 2px;
+        background: #fff;
+        content: "";
+      }
+
+      .battery::after {
+        position: absolute;
+        right: -4px;
+        top: 3px;
+        width: 2px;
+        height: 6px;
+        border-radius: 0 2px 2px 0;
+        background: rgba(255, 255, 255, 0.62);
+        content: "";
+      }
+
+      .nav {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 44px;
+        padding: 0 12px;
+        pointer-events: none;
+      }
+
+      .icon-btn {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 50%;
+        background: rgba(24, 25, 28, 0.35);
+        color: #fff;
+        font-size: 19px;
+        line-height: 1;
+        backdrop-filter: blur(8px);
+        pointer-events: auto;
+      }
+
+      .nav-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .hero {
+        position: relative;
+        height: 255px;
+        background: #222;
+      }
+
+      .hero img {
+        position: absolute;
+        left: 0;
+        top: 44px;
+        width: 375px;
+        height: 211px;
+        object-fit: cover;
+      }
+
+      .hero::after {
+        position: absolute;
+        inset: auto 0 0;
+        height: 68px;
+        content: "";
+        background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.42));
+      }
+
+      .danmu {
+        position: absolute;
+        left: 12px;
+        bottom: 8px;
+        z-index: 2;
+        display: grid;
+        gap: 3px;
+        color: rgba(255, 255, 255, 0.88);
+        font-size: 10px;
+        line-height: 14px;
+      }
+
+      .photo-count {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        z-index: 2;
+        width: 44px;
+        height: 24px;
+        border-radius: 12px 0 0;
+        background: rgba(0, 0, 0, 0.55);
+        color: #fff;
+        font-size: 12px;
+        line-height: 24px;
+        text-align: center;
+      }
+
+      .content {
+        display: grid;
+        gap: 8px;
+        width: 375px;
+        overflow: hidden;
+        padding-bottom: 122px;
+      }
+
+      .content > * {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .card {
+        background: #fff;
+        border-radius: 12px;
+      }
+
+      .summary {
+        padding: 8px 16px 16px;
+        border-radius: 0 0 12px 12px;
+      }
+
+      .price {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 32px;
+        color: var(--brand-pink);
+      }
+
+      .price-label {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 26px;
+      }
+
+      .price-currency {
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 26px;
+      }
+
+      .price-number {
+        font-family: Roboto, Arial, sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 32px;
+      }
+
+      .title-row {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin-top: 8px;
+      }
+
+      .title-main {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .title-line {
+        display: flex;
+        gap: 4px;
+        font-size: 15px;
+        font-weight: 600;
+        line-height: 22px;
+      }
+
+      .exclusive {
+        color: var(--brand-pink);
+        font-weight: 800;
+      }
+
+      .date {
+        margin-top: 0;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 22px;
+      }
+
+      .want {
+        display: grid;
+        justify-items: center;
+        width: 68px;
+        color: var(--text-2);
+        font-size: 12px;
+        line-height: 16px;
+      }
+
+      .line {
+        height: 1px;
+        margin: 8px 0;
+        background: var(--line-light);
+        transform: scaleY(0.5);
+      }
+
+      .place-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 34px 34px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .place {
+        min-width: 0;
+      }
+
+      .place strong {
+        display: block;
+        overflow: hidden;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 18px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .place span {
+        display: block;
+        margin-top: 4px;
+        overflow: hidden;
+        color: var(--text-3);
+        font-size: 12px;
+        line-height: 16px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mini-action {
+        display: grid;
+        justify-items: center;
+        width: 34px;
+        color: var(--text-2);
+        font-size: 11px;
+        line-height: 16px;
+      }
+
+      .rank {
+        margin-top: 8px;
+        color: var(--gold);
+        font-size: 12px;
+        line-height: 16px;
+      }
+
+      .info-strip {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        background: #fff;
+        border-radius: 12px;
+      }
+
+      .tag-row {
+        display: flex;
+        overflow: hidden;
+        gap: 12px;
+        color: var(--text-2);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .ticket-row {
+        display: flex;
+        justify-content: space-between;
+        border-top: 1px solid var(--line-light);
+        padding-top: 10px;
+        color: var(--text-1);
+        font-size: 12px;
+        line-height: 16px;
+      }
+
+      .ticket-row b {
+        color: #111;
+      }
+
+      .strict {
+        display: flex;
+        justify-content: space-between;
+        border-radius: 8px;
+        padding: 9px 10px;
+        background: linear-gradient(90deg, #fff0f5, #fff);
+        color: var(--brand-pink);
+        font-size: 12px;
+      }
+
+      .guide {
+        position: relative;
+        height: 64px;
+        overflow: hidden;
+        border-radius: 12px;
+        background:
+          radial-gradient(circle at 92% 26%, rgba(255, 102, 153, 0.2) 0 2px, transparent 2.5px) 0 0 / 10px 10px,
+          radial-gradient(circle at 2% 16%, rgba(255, 102, 153, 0.16), transparent 48px),
+          linear-gradient(90deg, #fff 0%, #fff7fb 54%, #ffeef6 100%);
+      }
+
+      .guide h2 {
+        position: absolute;
+        left: 16px;
+        top: 10px;
+        margin: 0;
+        font-size: 16px;
+        line-height: 20px;
+      }
+
+      .guide p {
+        position: absolute;
+        left: 16px;
+        top: 36px;
+        margin: 0;
+        color: var(--text-2);
+        font-size: 12px;
+        line-height: 18px;
+      }
+
+      .guide .mascot {
+        position: absolute;
+        left: 219px;
+        top: 2px;
+        width: 66px;
+        height: 55px;
+        transform: rotate(-5deg);
+      }
+
+      .guide .mascot::before {
+        position: absolute;
+        left: 8px;
+        top: 9px;
+        width: 41px;
+        height: 32px;
+        border-radius: 48% 48% 44% 44%;
+        background: #e4f8ff;
+        content: "";
+        box-shadow: inset 0 -4px 0 #ccefff;
+      }
+
+      .guide .mascot::after {
+        position: absolute;
+        left: 25px;
+        top: 3px;
+        width: 22px;
+        height: 38px;
+        border-radius: 50% 50% 45% 45%;
+        background: #ffb6c9;
+        content: "";
+        opacity: 0.55;
+      }
+
+      .pink-btn {
+        position: absolute;
+        right: 16px;
+        top: 18px;
+        height: 30px;
+        min-width: 74px;
+        border-radius: 15px;
+        background: var(--brand-pink);
+        color: #fff;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .section {
+        padding: 16px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 20px;
+        margin-bottom: 12px;
+      }
+
+      .section-head h2 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 20px;
+      }
+
+      .section-head a {
+        color: var(--text-3);
+        font-size: 12px;
+        text-decoration: none;
+      }
+
+      .h-scroll {
+        display: flex;
+        gap: 8px;
+        overflow: hidden;
+      }
+
+      .guest {
+        flex: 0 0 60px;
+        text-align: center;
+      }
+
+      .guest img {
+        display: block;
+        width: 60px;
+        height: 60px;
+        border-radius: 6px;
+        object-fit: cover;
+      }
+
+      .guest span {
+        display: block;
+        margin-top: 6px;
+        overflow: hidden;
+        color: var(--text-1);
+        font-size: 12px;
+        line-height: 16px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .product-row {
+        display: flex;
+        gap: 10px;
+        overflow: hidden;
+      }
+
+      .product {
+        flex: 0 0 100px;
+      }
+
+      .product img {
+        width: 100px;
+        height: 100px;
+        border-radius: 6px;
+        object-fit: cover;
+      }
+
+      .product-title {
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 16px;
+      }
+
+      .product-price {
+        margin-top: 4px;
+        color: var(--brand-pink);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .video-row {
+        display: flex;
+        gap: 8px;
+        overflow: hidden;
+      }
+
+      .video-card {
+        flex: 0 0 168px;
+      }
+
+      .video-cover {
+        position: relative;
+        width: 168px;
+        height: 94px;
+        overflow: hidden;
+        border-radius: 6px;
+        background: #cbd0d7;
+      }
+
+      .video-cover img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .video-title {
+        margin-top: 6px;
+        overflow: hidden;
+        font-size: 12px;
+        line-height: 16px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .tab {
+        height: 32px;
+        border-radius: 16px;
+        padding: 0 8px;
+        background: #fff0f5;
+        color: var(--brand-pink);
+        font-size: 12px;
+      }
+
+      .note-row {
+        display: flex;
+        gap: 10px;
+        overflow: hidden;
+      }
+
+      .note-card {
+        flex: 0 0 90px;
+      }
+
+      .note-card img {
+        width: 90px;
+        height: 90px;
+        border-radius: 6px;
+        object-fit: cover;
+      }
+
+      .note-card p {
+        display: -webkit-box;
+        margin: 6px 0 0;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        font-size: 12px;
+        line-height: 16px;
+      }
+
+      .circle-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        margin-top: 12px;
+        color: var(--brand-pink);
+        font-size: 12px;
+        line-height: 24px;
+      }
+
+      .avatars {
+        display: flex;
+        margin-right: 2px;
+      }
+
+      .avatars img {
+        width: 24px;
+        height: 24px;
+        margin-left: -6px;
+        border: 1px solid #fff;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+
+      .detail-quote {
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: linear-gradient(90deg, #fff0f5, #fff);
+        color: var(--brand-pink);
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 18px;
+      }
+
+      .detail-text {
+        margin: 8px 0 12px;
+        color: var(--text-2);
+        font-size: 12px;
+        line-height: 18px;
+      }
+
+      .detail-img-wrap {
+        position: relative;
+        height: 230px;
+        overflow: hidden;
+        border-radius: 6px;
+      }
+
+      .detail-img-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .fade-more {
+        position: absolute;
+        inset: auto 0 0;
+        display: grid;
+        height: 80px;
+        place-items: end center;
+        padding-bottom: 8px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0), #fff);
+        color: var(--text-2);
+        font-size: 14px;
+      }
+
+      .info-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .info-item {
+        display: grid;
+        grid-template-columns: 52px 1fr;
+        gap: 16px;
+        font-size: 12px;
+        line-height: 18px;
+      }
+
+      .info-item dt {
+        color: var(--text-3);
+      }
+
+      .info-item dd {
+        margin: 0;
+        color: var(--text-1);
+      }
+
+      .paragraph {
+        margin: 0;
+        color: var(--text-2);
+        font-size: 12px;
+        line-height: 18px;
+      }
+
+      .divider {
+        height: 1px;
+        margin: 12px 0;
+        background: var(--line-light);
+      }
+
+      .recommend-list {
+        display: grid;
+        gap: 16px;
+      }
+
+      .recommend {
+        display: flex;
+        gap: 10px;
+        height: 120px;
+      }
+
+      .recommend img,
+      .empty-cover {
+        flex: 0 0 90px;
+        width: 90px;
+        height: 120px;
+        border-radius: 6px;
+        object-fit: cover;
+      }
+
+      .empty-cover {
+        display: grid;
+        place-items: center;
+        background: #e3e5e7;
+        color: #c9ccd0;
+        font-size: 34px;
+      }
+
+      .recommend-info {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .recommend-title {
+        display: -webkit-box;
+        margin: 0;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 22px;
+      }
+
+      .recommend-meta {
+        margin: 8px 0 0;
+        color: var(--text-1);
+        font-size: 12px;
+        line-height: 16px;
+        white-space: nowrap;
+      }
+
+      .recommend-bottom {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        color: var(--text-3);
+        font-size: 12px;
+        line-height: 26px;
+      }
+
+      .recommend-price {
+        color: var(--brand-pink);
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .recommend-price small {
+        font-size: 12px;
+      }
+
+      .notice {
+        display: flex;
+        align-items: center;
+        height: 28px;
+        padding: 0 12px;
+        color: var(--text-3);
+        font-size: 12px;
+        background: #fff;
+      }
+
+      .bottom {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 10;
+        padding: 0 16px 34px;
+        background: #fff;
+      }
+
+      .buy {
+        width: 343px;
+        height: 42px;
+        border-radius: 21px;
+        background: var(--brand-pink);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 500;
+      }
+
+      .home-indicator {
+        position: absolute;
+        left: 121px;
+        bottom: 8px;
+        width: 134px;
+        height: 5px;
+        border-radius: 3px;
+        background: #000;
+      }
+
+      .is-editable-hover {
+        cursor: var(--figma-cursor);
+      }
+
+      .is-editable-hover:hover {
+        outline: 1px solid rgba(0, 174, 236, 0.7);
+        outline-offset: -1px;
+      }
+
+      .is-selected-node {
+        outline: 2px solid #00aeec !important;
+        outline-offset: -2px;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.75), 0 0 0 3px rgba(0, 174, 236, 0.16);
+      }
+
+      .layers-panel {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 50;
+        display: flex;
+        width: var(--layers-width);
+        height: 100vh;
+        flex-direction: column;
+        overflow: hidden;
+        border-right: 1px solid #d8dde3;
+        background: #f7f9fb;
+        box-shadow: 12px 0 36px rgba(24, 25, 28, 0.1);
+      }
+
+      .layers-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 52px;
+        border-bottom: 1px solid #e3e7ec;
+        padding: 0 14px;
+        background: #fff;
+      }
+
+      .layers-title {
+        display: grid;
+        gap: 2px;
+      }
+
+      .layers-title strong {
+        font-size: 13px;
+        line-height: 18px;
+      }
+
+      .layers-title span {
+        color: #7b828c;
+        font-size: 11px;
+        line-height: 14px;
+      }
+
+      .layers-body {
+        flex: 1;
+        overflow: auto;
+        padding: 8px 8px 16px;
+        scrollbar-color: rgba(123, 130, 140, 0.18) transparent;
+        scrollbar-width: thin;
+      }
+
+      .layers-body::-webkit-scrollbar,
+      .inspector-body::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      .layers-body::-webkit-scrollbar-track,
+      .inspector-body::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .layers-body::-webkit-scrollbar-thumb,
+      .inspector-body::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: rgba(123, 130, 140, 0.18);
+      }
+
+      .layers-body:hover::-webkit-scrollbar-thumb,
+      .inspector-body:hover::-webkit-scrollbar-thumb {
+        background: rgba(123, 130, 140, 0.34);
+      }
+
+      .layer-tree,
+      .layer-tree ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .layer-tree ul {
+        padding-left: 12px;
+      }
+
+      .layer-item {
+        display: grid;
+        grid-template-columns: 14px minmax(0, 1fr);
+        align-items: center;
+        gap: 4px;
+        height: 28px;
+        border-radius: 6px;
+        padding: 0 6px;
+        color: #3f454d;
+        cursor: pointer;
+        font-size: 12px;
+      }
+
+      .layer-item:hover {
+        background: #eef7fb;
+      }
+
+      .layer-item.is-current {
+        background: #dff6fd;
+        color: #00699d;
+        font-weight: 650;
+      }
+
+      .layer-caret {
+        color: #9499a0;
+        font-size: 10px;
+      }
+
+      .layer-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .layer-type {
+        color: #9499a0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+
+      .inspector {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 50;
+        display: flex;
+        width: var(--inspector-width);
+        height: 100vh;
+        max-height: none;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+        border: 0;
+        border-left: 1px solid #d8dde3;
+        border-radius: 0;
+        background: #f7f9fb;
+        box-shadow: -12px 0 36px rgba(24, 25, 28, 0.12);
+      }
+
+      .inspector-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 52px;
+        border-bottom: 1px solid #e3e7ec;
+        padding: 0 14px;
+        background: #fff;
+      }
+
+      .inspector-title {
+        display: grid;
+        gap: 2px;
+      }
+
+      .inspector-title strong {
+        font-size: 13px;
+        line-height: 18px;
+      }
+
+      .inspector-title span {
+        color: #7b828c;
+        font-size: 11px;
+        line-height: 14px;
+      }
+
+      .inspect-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .tool-button {
+        display: grid;
+        min-width: 30px;
+        height: 30px;
+        place-items: center;
+        border: 1px solid #d8dde3;
+        border-radius: 6px;
+        background: #fff;
+        color: #3f454d;
+        font-size: 13px;
+      }
+
+      .tool-button:hover {
+        border-color: #00aeec;
+        color: #00aeec;
+      }
+
+      .inspector-body {
+        overflow: auto;
+        padding: 12px;
+        scrollbar-color: rgba(123, 130, 140, 0.18) transparent;
+        scrollbar-width: thin;
+      }
+
+      .selection-chip {
+        display: grid;
+        gap: 6px;
+        border: 1px solid #e3e7ec;
+        border-radius: 8px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      .node-name {
+        overflow: hidden;
+        font-size: 13px;
+        font-weight: 650;
+        line-height: 18px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .node-meta {
+        display: flex;
+        gap: 6px;
+        color: #7b828c;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+      }
+
+      .panel-section {
+        margin-top: 10px;
+        overflow: hidden;
+        border: 1px solid #e3e7ec;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .panel-section summary {
+        display: flex;
+        height: 40px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 650;
+        list-style: none;
+      }
+
+      .panel-section summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .panel-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        border-top: 1px solid #edf0f3;
+        padding: 12px;
+      }
+
+      .field {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .field.wide {
+        grid-column: 1 / -1;
+      }
+
+      .field label {
+        color: #7b828c;
+        font-size: 11px;
+        line-height: 14px;
+      }
+
+      .field input,
+      .field select,
+      .field textarea {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid #d8dde3;
+        border-radius: 6px;
+        background: #fff;
+        color: #18191c;
+        font: inherit;
+        font-size: 12px;
+      }
+
+      .field input,
+      .field select {
+        height: 30px;
+        padding: 0 8px;
+      }
+
+      .field select {
+        appearance: none;
+        padding-right: 30px;
+        background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3.25 4.5 6 7.25 8.75 4.5' fill='none' stroke='%2361666d' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-position: right 10px center;
+        background-repeat: no-repeat;
+        background-size: 12px 12px;
+      }
+
+      .field input[type="color"] {
+        padding: 3px;
+      }
+
+      .field textarea {
+        min-height: 104px;
+        resize: vertical;
+        padding: 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        line-height: 16px;
+      }
+
+      .asset-status {
+        grid-column: 1 / -1;
+        margin: 0;
+        color: #7b828c;
+        font-size: 11px;
+        line-height: 16px;
+      }
+
+      .upload-box {
+        display: grid;
+        gap: 6px;
+      }
+
+      .upload-box input[type="file"] {
+        height: auto;
+        padding: 7px;
+        cursor: pointer;
+      }
+
+      .upload-box.is-disabled {
+        opacity: 0.45;
+      }
+
+      .upload-box.is-disabled input {
+        pointer-events: none;
+      }
+
+      .uploaded-svg-icon {
+        display: inline-grid;
+        place-items: center;
+      }
+
+      .uploaded-svg-icon svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .export-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: none;
+        place-items: center;
+        background: rgba(24, 25, 28, 0.34);
+        backdrop-filter: blur(8px);
+      }
+
+      .export-modal.is-open {
+        display: grid;
+      }
+
+      .export-dialog {
+        width: 360px;
+        overflow: hidden;
+        border: 1px solid #d8dde3;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 24px 80px rgba(24, 25, 28, 0.28);
+      }
+
+      .export-dialog header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 48px;
+        border-bottom: 1px solid #e3e7ec;
+        padding: 0 14px;
+      }
+
+      .export-dialog h2 {
+        margin: 0;
+        font-size: 14px;
+        line-height: 20px;
+      }
+
+      .export-close {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: #f1f2f3;
+        color: #61666d;
+      }
+
+      .export-body {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .format-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid #e3e7ec;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      .format-pill {
+        border-radius: 999px;
+        padding: 3px 9px;
+        background: #dff6fd;
+        color: #00699d;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .export-preview {
+        max-height: 180px;
+        overflow: auto;
+        border-radius: 8px;
+        background: #101114;
+        color: #f6f7f8;
+        padding: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+
+      .export-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        border-top: 1px solid #e3e7ec;
+        padding: 12px 14px;
+      }
+
+      .range-field {
+        display: grid;
+        grid-template-columns: 1fr 52px;
+        gap: 6px;
+      }
+
+      .range-field input[type="range"] {
+        padding: 0;
+      }
+
+      .panel-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        border-top: 1px solid #e3e7ec;
+        padding: 12px;
+        background: #fff;
+      }
+
+      .primary-tool,
+      .secondary-tool {
+        height: 34px;
+        border-radius: 7px;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .primary-tool {
+        background: #00aeec;
+        color: #fff;
+      }
+
+      .secondary-tool {
+        border: 1px solid #d8dde3;
+        background: #fff;
+        color: #3f454d;
+      }
+
+      @media (max-width: 860px) {
+        :root {
+          --side-panel-width: min(360px, 86vw);
+        }
+
+        .editor-workbench {
+          grid-template-columns: 375px;
+          justify-content: start;
+          width: calc(100vw - var(--layers-width));
+          margin-left: var(--layers-width);
+          padding: 0 var(--inspector-width) 0 0;
+        }
+
+        .inspector {
+          width: var(--inspector-width);
+        }
+      }
+
+      @media (max-width: 374px) {
+        .phone {
+          transform: scale(calc(100vw / 375));
+          transform-origin: top left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <aside class="layers-panel" aria-label="图层面板">
+      <header class="layers-top">
+        <div class="layers-title">
+          <strong>Layers</strong>
+          <span>DOM hierarchy</span>
+        </div>
+        <button class="tool-button" type="button" id="refreshLayers" title="刷新图层">↻</button>
+      </header>
+      <div class="layers-body">
+        <ul class="layer-tree" id="layerTree"></ul>
+      </div>
+    </aside>
+
+    <div class="editor-workbench">
+    <div class="canvas-stage">
+      <div class="modebar">
+        <div class="mode-tabs" aria-label="主画板模式">
+          <button class="mode-tab is-active" type="button" id="viewMode">View</button>
+          <button class="mode-tab" type="button" id="codeMode">Code</button>
+        </div>
+        <div class="mode-actions">
+          <div class="mode-context" id="modeContext">.summary</div>
+          <button class="code-action" type="button" id="copyCode">复制</button>
+          <button class="code-action" type="button" id="exportCode">导出</button>
+        </div>
+      </div>
+    <main class="phone" aria-label="bilibili 票务详情页">
+      <div class="top-layer" aria-label="吸顶交互层">
+        <div class="status" aria-label="手机状态栏">
+          <span class="status-time">9:41</span>
+          <span class="status-icons" aria-hidden="true">
+            <span class="cellular"><span></span><span></span><span></span><span></span></span>
+            <span class="wifi"></span>
+            <span class="battery"></span>
+          </span>
+        </div>
+        <div class="nav">
+          <button class="icon-btn" aria-label="返回">‹</button>
+          <div class="nav-actions">
+            <button class="icon-btn" aria-label="分享">↗</button>
+            <button class="icon-btn" aria-label="更多">⋮</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="hero">
+        <img src="./bilibili-2026-assets/hero.png" alt="上海蔚蓝档案仲夏寻音主题派对主视觉" />
+        <div class="danmu">
+          <span>12分钟前有人想去</span>
+          <span>1分钟前 上海漫展第53名</span>
+        </div>
+        <div class="photo-count">1/6</div>
+      </section>
+
+      <div class="content">
+        <section class="card summary">
+          <div class="price">
+            <span class="price-label">预估到手价</span>
+            <span class="price-currency">¥</span>
+            <span class="price-number">235-680</span>
+          </div>
+          <div class="title-row">
+            <div class="title-main">
+              <div class="title-line"><span class="exclusive">独家</span><span>上海·蔚蓝档案only1.5仲夏寻音乐</span></div>
+              <div class="date">2025.05.30-05.31（以现场为主）</div>
+            </div>
+            <div class="want"><span>♡</span><span>2830人想去</span></div>
+          </div>
+          <div class="line"></div>
+          <div class="place-row">
+            <div class="place">
+              <strong>CreamClub奶油俱乐部</strong>
+              <span>滨江大道5230号B1微山路路口</span>
+            </div>
+            <div class="mini-action"><span>▱</span><span>座位图</span></div>
+            <div class="mini-action"><span>◎</span><span>位置</span></div>
+          </div>
+          <div class="rank">近期上海市展览想去人数 · 第1名</div>
+        </section>
+
+        <section class="info-strip">
+          <div class="tag-row"><span>ⓘ 不可退</span><span>☑ 可换票</span><span>◉ 可转赠</span><span>实名制</span><span>可选座</span><span>电子票</span></div>
+          <div class="ticket-row"><b>自由行</b><span>申请参与自由行，免费参展</span><span>去报名 ›</span></div>
+          <div class="strict"><span>会员购严选 大型场馆 · 优质内容 · 口碑服务 · 附加权益</span></div>
+          <div class="strict"><span>退票通知</span><span>1条通知 ›</span></div>
+        </section>
+
+        <section class="card guide">
+          <h2>抢票攻略</h2>
+          <p>做好万全准备，抢票快人一步</p>
+          <div class="mascot" aria-hidden="true"></div>
+          <button class="pink-btn">去看看</button>
+        </section>
+
+        <section class="card section">
+          <div class="section-head"><h2>参展嘉宾（16）</h2><a href="#">全部 ›</a></div>
+          <div class="h-scroll">
+            <div class="guest"><img src="./bilibili-2026-assets/guest-1.png" alt="" /><span>嘉宾</span></div>
+            <div class="guest"><img src="./bilibili-2026-assets/guest-2.png" alt="" /><span>嘉宾一</span></div>
+            <div class="guest"><img src="./bilibili-2026-assets/guest-3.png" alt="" /><span>嘉宾嘉宾</span></div>
+            <div class="guest"><img src="./bilibili-2026-assets/guest-4.png" alt="" /><span>嘉宾嘉宾宾</span></div>
+            <div class="guest"><img src="./bilibili-2026-assets/guest-5.png" alt="" /><span>嘉宾</span></div>
+            <div class="guest"><img src="./bilibili-2026-assets/guest-6.png" alt="" /><span>嘉宾</span></div>
+          </div>
+        </section>
+
+        <section class="card section">
+          <div class="section-head"><h2>场贩（23）</h2><a href="#">全部 ›</a></div>
+          <div class="product-row">
+            <article class="product"><img src="./bilibili-2026-assets/recommend-2.png" alt="" /><div class="product-title">会场兑换 明日方舟</div><div class="product-price">¥1069.3</div></article>
+            <article class="product"><img src="./bilibili-2026-assets/hero.png" alt="" /><div class="product-title">明日方舟 来次聚会</div><div class="product-price">¥233.33</div></article>
+            <article class="product"><img src="./bilibili-2026-assets/recommend-1.png" alt="" /><div class="product-title">会场兑换 明日方舟</div><div class="product-price">¥23.3</div></article>
+            <article class="product"><img src="./bilibili-2026-assets/guest-3.png" alt="" /><div class="product-title">会场限定周边</div><div class="product-price">¥69.9</div></article>
+          </div>
+        </section>
+
+        <section class="card section">
+          <div class="section-head"><h2>相关视频（20）</h2><a href="#">查看全部 ›</a></div>
+          <div class="video-row">
+            <article class="video-card"><div class="video-cover"><img src="./bilibili-2026-assets/guest-4.png" alt="" /></div><div class="video-title">第6话 献上一场无可代替的演出</div></article>
+            <article class="video-card"><div class="video-cover"><img src="./bilibili-2026-assets/hero.png" alt="" /></div><div class="video-title">【蔚蓝档案】最新主题派对情报</div></article>
+          </div>
+        </section>
+
+        <section class="card section">
+          <div class="section-head"><h2>漫展圈热议</h2><button class="pink-btn" style="position: static; height: 26px; min-width: 72px; font-size: 12px;">发帖讨论</button></div>
+          <div class="tabs"><button class="tab">全部</button><button class="tab" style="background:#f6f7f8;color:#61666d;">官方情报</button></div>
+          <div class="note-row">
+            <article class="note-card"><img src="./bilibili-2026-assets/guest-1.png" alt="" /><p>好看的谷子！快来带走它吧！...</p></article>
+            <article class="note-card"><img src="./bilibili-2026-assets/guest-2.png" alt="" /><p>绝美神仙鱼</p></article>
+            <article class="note-card"><img src="./bilibili-2026-assets/guest-3.png" alt="" /><p>收容幸福感</p></article>
+            <article class="note-card"><img src="./bilibili-2026-assets/guest-1.png" alt="" /><p>好看的谷子！快来带走它吧！...</p></article>
+          </div>
+          <div class="circle-link"><span class="avatars"><img src="./bilibili-2026-assets/guest-2.png" alt="" /><img src="./bilibili-2026-assets/guest-3.png" alt="" /><img src="./bilibili-2026-assets/guest-4.png" alt="" /></span>去漫展圈查看全部内容 ›</div>
+        </section>
+
+        <section class="card section">
+          <div class="section-head"><h2>展演详情</h2></div>
+          <div class="detail-quote">文案文案文案文案文案文案文案文案文案文案</div>
+          <p class="detail-text">文案描述文案描述文案描述文案描述文案描述文案描述文案描述文案描述文案描述文案描述文案描述文案描述文案描述</p>
+          <div class="detail-img-wrap">
+            <img src="./bilibili-2026-assets/hero.png" alt="" />
+            <div class="fade-more">展开全部</div>
+          </div>
+        </section>
+
+        <section class="card section">
+          <div class="section-head"><h2>基本信息</h2></div>
+          <dl class="info-list">
+            <div class="info-item"><dt>活动日期</dt><dd>2025-05-31 10:00:00-17:00:00</dd></div>
+            <div class="info-item"><dt>场馆地址</dt><dd>上海市 浦东新区 CreamClub奶油俱乐部</dd></div>
+            <div class="info-item"><dt>入场说明</dt><dd>电子票，凭购票二维码验证入场（订单或者订单截图无效）</dd></div>
+            <div class="info-item"><dt>儿童说明</dt><dd>1.2米以下及以上儿童全价票入场</dd></div>
+            <div class="info-item"><dt>入场次数</dt><dd>单场票，单日多次入场有效</dd></div>
+            <div class="info-item"><dt>实名认证</dt><dd>一单一证，购票须填写真实的身份信息以及手机号，购票后不支持更换身份证信息，需携带购票时填写的身份证原件入场</dd></div>
+            <div class="info-item"><dt>退换说明</dt><dd>因票品具有稀缺性和时效性的特点，一旦退货将会影响二次销售，此项目不支持退换，请您理解并谨慎购买</dd></div>
+          </dl>
+        </section>
+
+        <section class="card section">
+          <div class="section-head"><h2>票种权益</h2></div>
+          <p class="paragraph">内容同线上内容同线上内容同线上内容同线上内容同线上内容同线上内容同线上内容同线上内容同线上内容同线上内容同线上内容同线上</p>
+          <div class="divider"></div>
+          <div class="section-head"><h2>购票须知</h2><a href="#">⌃</a></div>
+          <p class="paragraph">购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知购票须知</p>
+        </section>
+
+        <section class="card section">
+          <div class="section-head"><h2>相关推荐</h2></div>
+          <div class="recommend-list">
+            <article class="recommend">
+              <img src="./bilibili-2026-assets/recommend-1.png" alt="" />
+              <div class="recommend-info">
+                <div><h3 class="recommend-title">上海·蔚蓝档案only1.5仲夏寻音乐主题派对夏寻音乐主题派对...</h3><p class="recommend-meta">2025.05.31-06.02 上海市 BFC外滩金融中心</p></div>
+                <div class="recommend-bottom"><span><span class="recommend-price"><small>¥</small>20<small>.9</small></span> 3天后开展</span><span>505人想去</span></div>
+              </div>
+            </article>
+            <article class="recommend">
+              <div class="empty-cover">▣</div>
+              <div class="recommend-info">
+                <div><h3 class="recommend-title">上海·蔚蓝档案only1.5仲夏寻音乐主题派对夏寻音乐主题派对...</h3><p class="recommend-meta">2025.05.31-06.02 上海市 BFC外滩金融中心</p></div>
+                <div class="recommend-bottom"><span><span class="recommend-price"><small>¥</small>20<small>起</small></span> 3天后开展</span><span>505人想去</span></div>
+              </div>
+            </article>
+            <article class="recommend">
+              <img src="./bilibili-2026-assets/recommend-1.png" alt="" />
+              <div class="recommend-info">
+                <div><h3 class="recommend-title">上海·蔚蓝档案only1.5仲夏寻音乐主题派对夏寻音乐主题派对...</h3><p class="recommend-meta">2025.05.31-06.02 上海市 BFC外滩金融中心</p></div>
+                <div class="recommend-bottom"><span><span class="recommend-price"><small>¥</small>20<small>.9</small></span> 3天后开展</span><span>505人想去</span></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <div class="notice">ⓘ 示：会员购仅作为本活动票务销售平台，活动内容和合规手续为</div>
+      </div>
+
+      <footer class="bottom">
+        <button class="buy">立即购票</button>
+        <div class="home-indicator"></div>
+      </footer>
+    </main>
+      <section class="code-canvas" aria-label="选中节点代码视图">
+        <pre id="codeView"></pre>
+      </section>
+    </div>
+    <aside class="inspector" aria-label="可视化编辑面板">
+      <header class="inspector-top">
+        <div class="inspector-title">
+          <strong>Inspector</strong>
+          <span>Visual properties</span>
+        </div>
+        <div class="inspect-actions">
+          <button class="tool-button" type="button" id="selectParent" title="选择父级">↑</button>
+          <button class="tool-button" type="button" id="resetNode" title="清除当前内联样式">↺</button>
+        </div>
+      </header>
+
+      <div class="inspector-body">
+        <div class="selection-chip">
+          <div class="node-name" id="nodeName">点击左侧画布元素</div>
+          <div class="node-meta"><span id="nodeTag">none</span><span id="nodeClass">no selection</span></div>
+        </div>
+
+        <details class="panel-section" open>
+          <summary>Typography</summary>
+          <div class="panel-grid">
+            <div class="field wide">
+              <label for="textValue">Text</label>
+              <textarea id="textValue" rows="3"></textarea>
+            </div>
+            <div class="field">
+              <label for="fontFamily">Font</label>
+              <select id="fontFamily">
+                <option value='"PingFang SC", "SF Pro Display", "Microsoft YaHei", Arial, sans-serif'>PingFang SC</option>
+                <option value='Arial, sans-serif'>Arial</option>
+                <option value='Roboto, Arial, sans-serif'>Roboto</option>
+                <option value='ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'>Mono</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fontWeight">Weight</label>
+              <select id="fontWeight">
+                <option value="400">Regular 400</option>
+                <option value="500">Medium 500</option>
+                <option value="600">Semibold 600</option>
+                <option value="700">Bold 700</option>
+                <option value="800">Heavy 800</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fontSize">Size</label>
+              <div class="range-field"><input id="fontSize" type="range" min="8" max="36" step="1" /><input id="fontSizeNumber" type="number" min="8" max="64" /></div>
+            </div>
+            <div class="field">
+              <label for="lineHeight">Line</label>
+              <div class="range-field"><input id="lineHeight" type="range" min="10" max="48" step="1" /><input id="lineHeightNumber" type="number" min="10" max="80" /></div>
+            </div>
+            <div class="field">
+              <label for="textColor">Color</label>
+              <input id="textColor" type="color" />
+            </div>
+            <div class="field">
+              <label for="textAlign">Align</label>
+              <select id="textAlign">
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-section" open>
+          <summary>Layout</summary>
+          <div class="panel-grid">
+            <div class="field">
+              <label for="widthValue">W</label>
+              <input id="widthValue" type="number" min="0" />
+            </div>
+            <div class="field">
+              <label for="heightValue">H</label>
+              <input id="heightValue" type="number" min="0" />
+            </div>
+            <div class="field">
+              <label for="paddingValue">Padding</label>
+              <input id="paddingValue" type="number" min="0" />
+            </div>
+            <div class="field">
+              <label for="marginValue">Margin</label>
+              <input id="marginValue" type="number" min="0" />
+            </div>
+            <div class="field">
+              <label for="gapValue">Gap</label>
+              <input id="gapValue" type="number" min="0" />
+            </div>
+            <div class="field">
+              <label for="displayValue">Display</label>
+              <select id="displayValue">
+                <option value="">Auto</option>
+                <option value="block">Block</option>
+                <option value="flex">Flex</option>
+                <option value="grid">Grid</option>
+                <option value="inline-flex">Inline flex</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-section" open>
+          <summary>Appearance</summary>
+          <div class="panel-grid">
+            <div class="field">
+              <label for="bgColor">Fill</label>
+              <input id="bgColor" type="color" />
+            </div>
+            <div class="field">
+              <label for="radiusValue">Radius</label>
+              <input id="radiusValue" type="number" min="0" />
+            </div>
+            <div class="field">
+              <label for="opacityValue">Opacity</label>
+              <div class="range-field"><input id="opacityValue" type="range" min="0" max="1" step="0.05" /><input id="opacityNumber" type="number" min="0" max="1" step="0.05" /></div>
+            </div>
+            <div class="field">
+              <label for="shadowValue">Shadow</label>
+              <select id="shadowValue">
+                <option value="">None</option>
+                <option value="0 2px 8px rgba(24,25,28,.12)">Soft</option>
+                <option value="0 8px 28px rgba(24,25,28,.18)">Float</option>
+                <option value="inset 0 0 0 1px rgba(0,0,0,.08)">Inset line</option>
+              </select>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-section" open>
+          <summary>Assets</summary>
+          <div class="panel-grid">
+            <p class="asset-status" id="assetStatus">选择图片或 icon 后可上传替换资源。</p>
+            <div class="field wide upload-box" id="imageUploadBox">
+              <label for="imageUpload">Image file</label>
+              <input id="imageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" />
+            </div>
+            <div class="field wide upload-box" id="svgUploadBox">
+              <label for="svgUpload">SVG icon source</label>
+              <input id="svgUpload" type="file" accept=".svg,image/svg+xml" />
+            </div>
+          </div>
+        </details>
+
+        <details class="panel-section" open>
+          <summary>Inline CSS</summary>
+          <div class="panel-grid">
+            <div class="field wide">
+              <label for="styleCode">style=""</label>
+              <textarea id="styleCode" spellcheck="false"></textarea>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <footer class="panel-footer">
+        <button class="secondary-tool" type="button" id="applyCss">Apply CSS</button>
+        <button class="primary-tool" type="button" id="copyCss">Copy style</button>
+      </footer>
+    </aside>
+    </div>
+    <div class="export-modal" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+      <div class="export-dialog">
+        <header>
+          <h2 id="exportTitle">导出代码</h2>
+          <button class="export-close" type="button" id="closeExport" aria-label="关闭">×</button>
+        </header>
+        <div class="export-body">
+          <div class="format-row"><span>导出格式</span><span class="format-pill">HTML</span></div>
+          <pre class="export-preview" id="exportPreview"></pre>
+        </div>
+        <footer class="export-footer">
+          <button class="secondary-tool" type="button" id="cancelExport">取消</button>
+          <button class="primary-tool" type="button" id="downloadHtml">下载 HTML</button>
+        </footer>
+      </div>
+    </div>
+    <script>
+      const phone = document.querySelector(".phone");
+      const topLayer = document.querySelector(".top-layer");
+      let selectedNode = null;
+      let layerNodes = [];
+
+      function syncTopLayer() {
+        if (document.body.classList.contains("code-mode")) {
+          topLayer.classList.remove("is-fixed");
+          return;
+        }
+        const rect = phone.getBoundingClientRect();
+        document.documentElement.style.setProperty("--phone-fixed-left", `${rect.left}px`);
+        topLayer.classList.toggle("is-fixed", rect.top <= 0 && rect.bottom > 88);
+      }
+
+      syncTopLayer();
+      window.addEventListener("scroll", syncTopLayer, { passive: true });
+      window.addEventListener("resize", syncTopLayer);
+
+      const controls = {
+        nodeName: document.querySelector("#nodeName"),
+        nodeTag: document.querySelector("#nodeTag"),
+        nodeClass: document.querySelector("#nodeClass"),
+        layerTree: document.querySelector("#layerTree"),
+        refreshLayers: document.querySelector("#refreshLayers"),
+        viewMode: document.querySelector("#viewMode"),
+        codeMode: document.querySelector("#codeMode"),
+        modeContext: document.querySelector("#modeContext"),
+        codeView: document.querySelector("#codeView"),
+        copyCode: document.querySelector("#copyCode"),
+        exportCode: document.querySelector("#exportCode"),
+        exportModal: document.querySelector("#exportModal"),
+        exportPreview: document.querySelector("#exportPreview"),
+        closeExport: document.querySelector("#closeExport"),
+        cancelExport: document.querySelector("#cancelExport"),
+        downloadHtml: document.querySelector("#downloadHtml"),
+        textValue: document.querySelector("#textValue"),
+        fontFamily: document.querySelector("#fontFamily"),
+        fontWeight: document.querySelector("#fontWeight"),
+        fontSize: document.querySelector("#fontSize"),
+        fontSizeNumber: document.querySelector("#fontSizeNumber"),
+        lineHeight: document.querySelector("#lineHeight"),
+        lineHeightNumber: document.querySelector("#lineHeightNumber"),
+        textColor: document.querySelector("#textColor"),
+        textAlign: document.querySelector("#textAlign"),
+        widthValue: document.querySelector("#widthValue"),
+        heightValue: document.querySelector("#heightValue"),
+        paddingValue: document.querySelector("#paddingValue"),
+        marginValue: document.querySelector("#marginValue"),
+        gapValue: document.querySelector("#gapValue"),
+        displayValue: document.querySelector("#displayValue"),
+        bgColor: document.querySelector("#bgColor"),
+        radiusValue: document.querySelector("#radiusValue"),
+        opacityValue: document.querySelector("#opacityValue"),
+        opacityNumber: document.querySelector("#opacityNumber"),
+        shadowValue: document.querySelector("#shadowValue"),
+        assetStatus: document.querySelector("#assetStatus"),
+        imageUpload: document.querySelector("#imageUpload"),
+        svgUpload: document.querySelector("#svgUpload"),
+        imageUploadBox: document.querySelector("#imageUploadBox"),
+        svgUploadBox: document.querySelector("#svgUploadBox"),
+        styleCode: document.querySelector("#styleCode"),
+        selectParent: document.querySelector("#selectParent"),
+        resetNode: document.querySelector("#resetNode"),
+        applyCss: document.querySelector("#applyCss"),
+        copyCss: document.querySelector("#copyCss"),
+      };
+
+      const selectableSelector = ".phone *:not(.top-layer):not(.top-layer *)";
+      phone.querySelectorAll(selectableSelector).forEach((node) => node.classList.add("is-editable-hover"));
+
+      function pxNumber(value) {
+        const number = parseFloat(value);
+        return Number.isFinite(number) ? Math.round(number) : "";
+      }
+
+      function toHex(color) {
+        if (!color || color === "transparent" || color === "rgba(0, 0, 0, 0)") return "#ffffff";
+        const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (!match) return "#ffffff";
+        return `#${[match[1], match[2], match[3]]
+          .map((part) => Number(part).toString(16).padStart(2, "0"))
+          .join("")}`;
+      }
+
+      function readableName(node) {
+        const text = node.textContent && node.children.length === 0 ? node.textContent.trim() : "";
+        const className = [...node.classList].filter((item) => !item.startsWith("is-")).join(".");
+        if (text) return text.slice(0, 36);
+        if (node.getAttribute("aria-label")) return node.getAttribute("aria-label");
+        if (className) return `.${className}`;
+        return node.tagName.toLowerCase();
+      }
+
+      function layerName(node) {
+        const className = [...node.classList].filter((item) => !item.startsWith("is-")).slice(0, 2).join(".");
+        const text = node.children.length === 0 ? node.textContent.trim().replace(/\s+/g, " ") : "";
+        if (className) return `.${className}`;
+        if (node.matches("img")) return node.getAttribute("alt") || "image";
+        if (text) return text.slice(0, 24);
+        return node.getAttribute("aria-label") || node.tagName.toLowerCase();
+      }
+
+      function shouldShowLayer(node) {
+        if (!(node instanceof HTMLElement)) return false;
+        if (node.closest(".top-layer")) return false;
+        return node !== phone;
+      }
+
+      function renderLayers() {
+        layerNodes = [];
+        const createBranch = (node) => {
+          const visibleChildren = [...node.children].filter(shouldShowLayer);
+          const li = document.createElement("li");
+          const id = layerNodes.push(node) - 1;
+          node.dataset.layerId = String(id);
+
+          const row = document.createElement("button");
+          row.type = "button";
+          row.className = "layer-item";
+          row.dataset.layerId = String(id);
+          row.innerHTML = `<span class="layer-caret">${visibleChildren.length ? "▸" : ""}</span><span class="layer-label"><span class="layer-type">${node.tagName.toLowerCase()}</span> ${layerName(node)}</span>`;
+          li.appendChild(row);
+
+          if (visibleChildren.length) {
+            const ul = document.createElement("ul");
+            visibleChildren.forEach((child) => ul.appendChild(createBranch(child)));
+            li.appendChild(ul);
+          }
+          return li;
+        };
+
+        controls.layerTree.innerHTML = "";
+        const rootRow = document.createElement("li");
+        const rootButton = document.createElement("button");
+        rootButton.type = "button";
+        rootButton.className = "layer-item";
+        rootButton.innerHTML = `<span class="layer-caret">▾</span><span class="layer-label"><span class="layer-type">main</span> phone</span>`;
+        rootRow.appendChild(rootButton);
+        const rootList = document.createElement("ul");
+        [...phone.children].filter(shouldShowLayer).forEach((child) => rootList.appendChild(createBranch(child)));
+        rootRow.appendChild(rootList);
+        controls.layerTree.appendChild(rootRow);
+        updateLayerSelection();
+      }
+
+      function updateLayerSelection() {
+        controls.layerTree.querySelectorAll(".layer-item").forEach((item) => item.classList.remove("is-current"));
+        if (!selectedNode?.dataset.layerId) return;
+        const row = controls.layerTree.querySelector(`[data-layer-id="${selectedNode.dataset.layerId}"]`);
+        row?.classList.add("is-current");
+        row?.scrollIntoView({ block: "nearest" });
+      }
+
+      function escapeHtml(value) {
+        return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]);
+      }
+
+      function cleanForCode(node) {
+        const clone = node.cloneNode(true);
+        clone.querySelectorAll("*").forEach((child) => {
+          child.classList.remove("is-editable-hover", "is-selected-node");
+          child.removeAttribute("data-layer-id");
+        });
+        clone.classList?.remove("is-editable-hover", "is-selected-node");
+        clone.removeAttribute("data-layer-id");
+        return clone.outerHTML;
+      }
+
+      function formatHtml(html) {
+        return html
+          .replace(/></g, ">\n<")
+          .split("\n")
+          .reduce((lines, line) => {
+            const trimmed = line.trim();
+            const closing = /^<\//.test(trimmed);
+            const selfClosing = /\/>$/.test(trimmed) || /^<(img|input|br|hr|meta|link)\b/i.test(trimmed);
+            const opening = /^<[^!/][^>]*>$/.test(trimmed) && !closing && !selfClosing && !trimmed.includes("</");
+            const depth = Math.max(lines.depth + (closing ? -1 : 0), 0);
+            lines.output.push(`${"  ".repeat(depth)}${trimmed}`);
+            lines.depth = Math.max(depth + (opening ? 1 : 0), 0);
+            return lines;
+          }, { output: [], depth: 0 }).output.join("\n");
+      }
+
+      function updateCodeView() {
+        if (!selectedNode) return;
+        controls.modeContext.textContent = readableName(selectedNode);
+        controls.codeView.textContent = formatHtml(cleanForCode(selectedNode));
+      }
+
+      function isImageNode(node) {
+        return node?.tagName?.toLowerCase() === "img";
+      }
+
+      function isSvgNode(node) {
+        return node?.tagName?.toLowerCase() === "svg";
+      }
+
+      function isSvgImageNode(node) {
+        if (!isImageNode(node)) return false;
+        const src = node.getAttribute("src") || "";
+        return src.endsWith(".svg") || src.startsWith("data:image/svg+xml");
+      }
+
+      function isIconLikeNode(node) {
+        if (!node) return false;
+        const className = [...node.classList].join(" ");
+        return isSvgNode(node) || isSvgImageNode(node) || /icon|btn|action|mini-action|cellular|wifi|battery/.test(className) || node.closest(".mini-action, .icon-btn");
+      }
+
+      function setUploadState() {
+        const imageEnabled = isImageNode(selectedNode);
+        const svgEnabled = isIconLikeNode(selectedNode);
+        controls.imageUploadBox.classList.toggle("is-disabled", !imageEnabled);
+        controls.svgUploadBox.classList.toggle("is-disabled", !svgEnabled);
+        controls.imageUpload.disabled = !imageEnabled;
+        controls.svgUpload.disabled = !svgEnabled;
+
+        if (imageEnabled && svgEnabled) {
+          controls.assetStatus.textContent = "当前节点支持图片替换，也可上传 SVG 作为 icon 源文件。";
+        } else if (imageEnabled) {
+          controls.assetStatus.textContent = "当前选中的是图片，可上传图片替换 src。";
+        } else if (svgEnabled) {
+          controls.assetStatus.textContent = "当前选中的是 icon/SVG 容器，可上传 SVG 源文件替换。";
+        } else {
+          controls.assetStatus.textContent = "选择图片或 icon 后可上传替换资源。";
+        }
+      }
+
+      function selectNode(node) {
+        if (!node || node === phone || node.closest(".top-layer")) return;
+        selectedNode?.classList.remove("is-selected-node");
+        selectedNode = node;
+        selectedNode.classList.add("is-selected-node");
+        syncPanel();
+      }
+
+      function syncPair(range, number, value) {
+        range.value = value;
+        number.value = value;
+      }
+
+      function syncPanel() {
+        if (!selectedNode) return;
+        const styles = getComputedStyle(selectedNode);
+        const rect = selectedNode.getBoundingClientRect();
+        const textNode = selectedNode.children.length === 0 || selectedNode.matches("button, a, h1, h2, h3, p, span, strong, dt, dd, div");
+
+        controls.nodeName.textContent = readableName(selectedNode);
+        controls.nodeTag.textContent = selectedNode.tagName.toLowerCase();
+        controls.nodeClass.textContent = [...selectedNode.classList].filter((item) => !item.startsWith("is-")).slice(0, 3).map((item) => `.${item}`).join(" ") || "no class";
+        controls.textValue.value = textNode ? selectedNode.textContent.trim() : "";
+        controls.fontFamily.value = [...controls.fontFamily.options].some((option) => option.value === styles.fontFamily) ? styles.fontFamily : controls.fontFamily.options[0].value;
+        controls.fontWeight.value = [...controls.fontWeight.options].some((option) => option.value === styles.fontWeight) ? styles.fontWeight : "400";
+        syncPair(controls.fontSize, controls.fontSizeNumber, pxNumber(styles.fontSize) || 14);
+        syncPair(controls.lineHeight, controls.lineHeightNumber, pxNumber(styles.lineHeight) || pxNumber(styles.fontSize) || 18);
+        controls.textColor.value = toHex(styles.color);
+        controls.textAlign.value = styles.textAlign || "left";
+        controls.widthValue.value = Math.round(rect.width);
+        controls.heightValue.value = Math.round(rect.height);
+        controls.paddingValue.value = pxNumber(styles.paddingTop);
+        controls.marginValue.value = pxNumber(styles.marginTop);
+        controls.gapValue.value = pxNumber(styles.gap);
+        controls.displayValue.value = selectedNode.style.display || "";
+        controls.bgColor.value = toHex(styles.backgroundColor);
+        controls.radiusValue.value = pxNumber(styles.borderTopLeftRadius);
+        syncPair(controls.opacityValue, controls.opacityNumber, styles.opacity || 1);
+        controls.shadowValue.value = selectedNode.style.boxShadow || "";
+        controls.styleCode.value = selectedNode.getAttribute("style") || "";
+        setUploadState();
+        updateLayerSelection();
+        updateCodeView();
+      }
+
+      function setPx(property, value) {
+        if (!selectedNode || value === "") return;
+        selectedNode.style[property] = `${value}px`;
+        syncPanel();
+      }
+
+      function setValue(property, value) {
+        if (!selectedNode) return;
+        selectedNode.style[property] = value;
+        syncPanel();
+      }
+
+      phone.addEventListener("click", (event) => {
+        const target = event.target.closest(selectableSelector);
+        if (!target) return;
+        event.preventDefault();
+        event.stopPropagation();
+        selectNode(target);
+      });
+
+      controls.layerTree.addEventListener("click", (event) => {
+        const row = event.target.closest(".layer-item[data-layer-id]");
+        if (!row) return;
+        const node = layerNodes[Number(row.dataset.layerId)];
+        if (!node) return;
+        selectNode(node);
+        if (!document.body.classList.contains("code-mode")) {
+          node.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+      });
+
+      controls.refreshLayers.addEventListener("click", renderLayers);
+
+      function setCanvasMode(mode) {
+        const isCode = mode === "code";
+        document.body.classList.toggle("code-mode", isCode);
+        controls.viewMode.classList.toggle("is-active", !isCode);
+        controls.codeMode.classList.toggle("is-active", isCode);
+        updateCodeView();
+        syncTopLayer();
+      }
+
+      controls.viewMode.addEventListener("click", () => setCanvasMode("view"));
+      controls.codeMode.addEventListener("click", () => setCanvasMode("code"));
+
+      controls.copyCode.addEventListener("click", async () => {
+        const code = controls.codeView.textContent || "";
+        try {
+          await navigator.clipboard.writeText(code);
+          controls.copyCode.textContent = "已复制";
+          window.setTimeout(() => (controls.copyCode.textContent = "复制"), 900);
+        } catch {
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(controls.codeView);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      });
+
+      function openExportModal() {
+        updateCodeView();
+        controls.exportPreview.textContent = controls.codeView.textContent || "";
+        controls.exportModal.classList.add("is-open");
+      }
+
+      function closeExportModal() {
+        controls.exportModal.classList.remove("is-open");
+      }
+
+      controls.exportCode.addEventListener("click", openExportModal);
+      controls.closeExport.addEventListener("click", closeExportModal);
+      controls.cancelExport.addEventListener("click", closeExportModal);
+      controls.exportModal.addEventListener("click", (event) => {
+        if (event.target === controls.exportModal) closeExportModal();
+      });
+
+      controls.downloadHtml.addEventListener("click", () => {
+        const html = controls.exportPreview.textContent || "";
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${readableName(selectedNode || phone).replace(/[\\/:*?"<>|\\s]+/g, "-") || "export"}.html`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        closeExportModal();
+      });
+
+      controls.textValue.addEventListener("input", () => {
+        if (!selectedNode || selectedNode.children.length > 0) return;
+        selectedNode.textContent = controls.textValue.value;
+        syncPanel();
+      });
+      controls.fontFamily.addEventListener("change", () => setValue("fontFamily", controls.fontFamily.value));
+      controls.fontWeight.addEventListener("change", () => setValue("fontWeight", controls.fontWeight.value));
+      controls.textColor.addEventListener("input", () => setValue("color", controls.textColor.value));
+      controls.textAlign.addEventListener("change", () => setValue("textAlign", controls.textAlign.value));
+      controls.bgColor.addEventListener("input", () => setValue("backgroundColor", controls.bgColor.value));
+      controls.displayValue.addEventListener("change", () => setValue("display", controls.displayValue.value));
+      controls.shadowValue.addEventListener("change", () => setValue("boxShadow", controls.shadowValue.value));
+
+      [
+        [controls.fontSize, controls.fontSizeNumber, "fontSize"],
+        [controls.lineHeight, controls.lineHeightNumber, "lineHeight"],
+        [controls.opacityValue, controls.opacityNumber, "opacity"],
+      ].forEach(([range, number, property]) => {
+        range.addEventListener("input", () => {
+          number.value = range.value;
+          setValue(property, property === "opacity" ? range.value : `${range.value}px`);
+        });
+        number.addEventListener("input", () => {
+          range.value = number.value;
+          setValue(property, property === "opacity" ? number.value : `${number.value}px`);
+        });
+      });
+
+      controls.widthValue.addEventListener("input", () => setPx("width", controls.widthValue.value));
+      controls.heightValue.addEventListener("input", () => setPx("height", controls.heightValue.value));
+      controls.paddingValue.addEventListener("input", () => setPx("padding", controls.paddingValue.value));
+      controls.marginValue.addEventListener("input", () => setPx("margin", controls.marginValue.value));
+      controls.gapValue.addEventListener("input", () => setPx("gap", controls.gapValue.value));
+      controls.radiusValue.addEventListener("input", () => setPx("borderRadius", controls.radiusValue.value));
+
+      controls.imageUpload.addEventListener("change", () => {
+        if (!selectedNode || !isImageNode(selectedNode) || !controls.imageUpload.files.length) return;
+        const file = controls.imageUpload.files[0];
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          selectedNode.src = reader.result;
+          selectedNode.dataset.uploadName = file.name;
+          syncPanel();
+          controls.assetStatus.textContent = `已替换图片：${file.name}`;
+        });
+        reader.readAsDataURL(file);
+      });
+
+      controls.svgUpload.addEventListener("change", () => {
+        if (!selectedNode || !isIconLikeNode(selectedNode) || !controls.svgUpload.files.length) return;
+        const file = controls.svgUpload.files[0];
+        const reader = new FileReader();
+        reader.addEventListener("load", () => {
+          const svgSource = String(reader.result || "").trim();
+          if (!svgSource.startsWith("<svg")) {
+            controls.assetStatus.textContent = "上传失败：请选择有效的 SVG 源文件。";
+            return;
+          }
+
+          if (isSvgNode(selectedNode)) {
+            const wrapper = document.createElement("div");
+            wrapper.innerHTML = svgSource;
+            const nextSvg = wrapper.querySelector("svg");
+            selectedNode.replaceWith(nextSvg);
+            selectedNode = nextSvg;
+            selectedNode.classList.add("is-editable-hover", "is-selected-node");
+          } else if (isImageNode(selectedNode)) {
+            selectedNode.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgSource)}`;
+          } else {
+            selectedNode.classList.add("uploaded-svg-icon");
+            selectedNode.innerHTML = svgSource;
+          }
+
+          selectedNode.dataset.uploadName = file.name;
+          renderLayers();
+          syncPanel();
+          controls.assetStatus.textContent = `已替换 SVG：${file.name}`;
+        });
+        reader.readAsText(file);
+      });
+
+      controls.applyCss.addEventListener("click", () => {
+        if (!selectedNode) return;
+        selectedNode.setAttribute("style", controls.styleCode.value);
+        syncPanel();
+      });
+
+      controls.copyCss.addEventListener("click", async () => {
+        if (!selectedNode) return;
+        const cssText = selectedNode.getAttribute("style") || "";
+        controls.styleCode.value = cssText;
+        try {
+          await navigator.clipboard.writeText(cssText);
+          controls.copyCss.textContent = "Copied";
+          window.setTimeout(() => (controls.copyCss.textContent = "Copy style"), 900);
+        } catch {
+          controls.styleCode.select();
+        }
+      });
+
+      controls.resetNode.addEventListener("click", () => {
+        if (!selectedNode) return;
+        selectedNode.removeAttribute("style");
+        syncPanel();
+      });
+
+      controls.selectParent.addEventListener("click", () => {
+        if (!selectedNode || !selectedNode.parentElement || selectedNode.parentElement === phone) return;
+        selectNode(selectedNode.parentElement);
+      });
+
+      renderLayers();
+      selectNode(document.querySelector(".summary"));
+    </script>
+  </body>
+</html>
