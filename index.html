@@ -971,6 +971,12 @@
         font-size: 34px;
       }
 
+      .empty-cover.uploaded-image-cover {
+        background-position: center;
+        background-size: cover;
+        color: transparent;
+      }
+
       .recommend-info {
         display: flex;
         flex: 1;
@@ -1033,7 +1039,7 @@
         right: 0;
         bottom: 0;
         z-index: 10;
-        padding: 0 16px 34px;
+        padding: 20px 16px 34px;
         background: #fff;
       }
 
@@ -2170,6 +2176,15 @@
         return node?.tagName?.toLowerCase() === "img";
       }
 
+      function isBackgroundImageTarget(node) {
+        if (!node) return false;
+        return node.classList.contains("guide") || node.classList.contains("empty-cover");
+      }
+
+      function isImageUploadTarget(node) {
+        return isImageNode(node) || isBackgroundImageTarget(node);
+      }
+
       function isSvgNode(node) {
         return node?.tagName?.toLowerCase() === "svg";
       }
@@ -2187,7 +2202,7 @@
       }
 
       function setUploadState() {
-        const imageEnabled = isImageNode(selectedNode);
+        const imageEnabled = isImageUploadTarget(selectedNode);
         const svgEnabled = isIconLikeNode(selectedNode);
         controls.imageUploadBox.classList.toggle("is-disabled", !imageEnabled);
         controls.svgUploadBox.classList.toggle("is-disabled", !svgEnabled);
@@ -2196,6 +2211,8 @@
 
         if (imageEnabled && svgEnabled) {
           controls.assetStatus.textContent = "当前节点支持图片替换，也可上传 SVG 作为 icon 源文件。";
+        } else if (isBackgroundImageTarget(selectedNode)) {
+          controls.assetStatus.textContent = "当前选中的是背景/封面容器，可上传图片替换背景。";
         } else if (imageEnabled) {
           controls.assetStatus.textContent = "当前选中的是图片，可上传图片替换 src。";
         } else if (svgEnabled) {
@@ -2377,11 +2394,19 @@
       controls.radiusValue.addEventListener("input", () => setPx("borderRadius", controls.radiusValue.value));
 
       controls.imageUpload.addEventListener("change", () => {
-        if (!selectedNode || !isImageNode(selectedNode) || !controls.imageUpload.files.length) return;
+        if (!selectedNode || !isImageUploadTarget(selectedNode) || !controls.imageUpload.files.length) return;
         const file = controls.imageUpload.files[0];
         const reader = new FileReader();
         reader.addEventListener("load", () => {
-          selectedNode.src = reader.result;
+          if (isImageNode(selectedNode)) {
+            selectedNode.src = reader.result;
+          } else {
+            selectedNode.style.backgroundImage = `url("${reader.result}")`;
+            selectedNode.style.backgroundPosition = "center";
+            selectedNode.style.backgroundSize = "cover";
+            selectedNode.classList.toggle("uploaded-image-cover", selectedNode.classList.contains("empty-cover"));
+            if (selectedNode.classList.contains("empty-cover")) selectedNode.textContent = "";
+          }
           selectedNode.dataset.uploadName = file.name;
           syncPanel();
           controls.assetStatus.textContent = `已替换图片：${file.name}`;
