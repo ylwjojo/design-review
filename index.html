@@ -16,6 +16,7 @@
         --side-panel-width: 390px;
         --layers-width: var(--side-panel-width);
         --inspector-width: var(--side-panel-width);
+        --canvas-view-height: min(772px, calc(100vh - 92px));
         --figma-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 34 34'%3E%3Cfilter id='s' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeDropShadow dx='2' dy='3' stdDeviation='2.2' flood-color='%23000000' flood-opacity='.28'/%3E%3C/filter%3E%3Cpath filter='url(%23s)' d='M4 3 L29 18 L18 22 L12 31 Z' fill='white'/%3E%3Cpath d='M8 8 L25 18 L16 20.8 L12.2 27 Z' fill='%232c2c2c'/%3E%3C/svg%3E") 4 3, default;
       }
 
@@ -37,9 +38,10 @@
         grid-template-columns: 375px;
         align-items: start;
         justify-content: center;
-        min-height: 100vh;
+        height: 100vh;
         width: calc(100vw - var(--inspector-width) - var(--layers-width));
         margin-left: var(--layers-width);
+        overflow: hidden;
         padding: 24px clamp(0px, 2vw, 24px);
       }
 
@@ -138,8 +140,7 @@
       .code-canvas {
         display: none;
         width: 375px;
-        min-height: 640px;
-        max-height: calc(100vh - 92px);
+        height: var(--canvas-view-height);
         overflow: auto;
         border: 1px solid #222832;
         border-radius: 8px;
@@ -174,20 +175,24 @@
       .phone {
         position: relative;
         width: 375px;
-        min-height: 3154px;
+        height: var(--canvas-view-height);
         margin: 0;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: auto;
         background: var(--bg-soft);
         box-shadow: 0 20px 60px rgba(24, 25, 28, 0.2);
+        scrollbar-color: rgba(123, 130, 140, 0.18) transparent;
+        scrollbar-width: thin;
       }
 
       .top-layer {
-        position: absolute;
+        position: sticky;
         left: 0;
         top: 0;
         right: 0;
         z-index: 20;
         height: 88px;
+        margin-bottom: -88px;
         pointer-events: none;
       }
 
