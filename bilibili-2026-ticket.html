@@ -508,6 +508,22 @@
         line-height: 16px;
       }
 
+      .want-icon {
+        display: inline-grid;
+        width: 16px;
+        height: 16px;
+        place-items: center;
+        color: var(--text-2);
+        font-size: 15px;
+        line-height: 16px;
+      }
+
+      .want-icon svg {
+        width: 16px;
+        height: 16px;
+        display: block;
+      }
+
       .line {
         height: 1px;
         margin: 8px 0;
@@ -1654,7 +1670,7 @@
               <div class="title-line"><span class="exclusive">独家</span><span>上海·蔚蓝档案only1.5仲夏寻音乐</span></div>
               <div class="date">2025.05.30-05.31（以现场为主）</div>
             </div>
-            <div class="want"><span>♡</span><span>2830人想去</span></div>
+            <div class="want"><span class="want-icon editable-icon" aria-label="想去爱心">♡</span><span>2830人想去</span></div>
           </div>
           <div class="line"></div>
           <div class="place-row">
@@ -2198,7 +2214,7 @@
       function isIconLikeNode(node) {
         if (!node) return false;
         const className = [...node.classList].join(" ");
-        return isSvgNode(node) || isSvgImageNode(node) || /icon|btn|action|mini-action|cellular|wifi|battery|editable-icon/.test(className) || node.closest(".mini-action, .icon-btn, .editable-icon");
+        return isSvgNode(node) || isSvgImageNode(node) || /icon|btn|action|mini-action|cellular|wifi|battery|editable-icon|want-icon/.test(className) || node.closest(".mini-action, .icon-btn, .editable-icon, .want-icon");
       }
 
       function setUploadState() {
